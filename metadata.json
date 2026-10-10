@@ -1,0 +1,6 @@
+{
+  "name": "AgroPakar - Sistem Pakar Tanaman & Deteksi Hama Cerdas",
+  "description": "Sistem pakar diagnosis penyakit tanaman dan hama pertanian berbasis mobile offline-first dengan inferensi gejala lokal, deteksi kamera AI, panduan penanganan ramah lingkungan, forum petani, dan prakiraan cuaca.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
