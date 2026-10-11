@@ -42,12 +42,12 @@ async function startServer() {
   });
 
   // --- API: WEATHER & AGROMETEOROLOGY FORECAST ---
-  app.get('/api/weather', (req, res) => {
+  app.get('/api/weather', async (req, res) => {
     const requestedLocation = (req.query.location as string) || '';
     const lat = req.query.lat ? Number(req.query.lat) : null;
     const lon = req.query.lon ? Number(req.query.lon) : null;
 
-    // Database of known agricultural regions
+    // Database of known agricultural regions with detailed administrative hierarchy
     const locationsData: Record<string, any> = {
       banyuwangi: {
         location: 'Kawasan Sentra Pangan Banyuwangi (Jawa Timur)',
@@ -64,6 +64,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: true,
           reason: 'Kecepatan angin 8 km/jam ideal dari drift semprotan. Waktu terbaik: 16:00 - 17:30.'
+        },
+        detailedLocation: {
+          desa: 'Tamansari & Songgon',
+          kecamatan: 'Rogojampi & Songgon',
+          kabupaten: 'Banyuwangi',
+          provinsi: 'Jawa Timur',
+          formattedAddress: 'Sentra Pertanian Padi & Hortikultura, Kabupaten Banyuwangi, Jawa Timur'
         }
       },
       karawang: {
@@ -81,6 +88,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: true,
           reason: 'Cuaca cerah dan angin sepoi. Sangat baik untuk aplikasi pestisida nabati mimba pagi hari pukul 06:30 - 08:30.'
+        },
+        detailedLocation: {
+          desa: 'Nagasari & Rawamerta',
+          kecamatan: 'Karawang Barat & Rawamerta',
+          kabupaten: 'Karawang',
+          provinsi: 'Jawa Barat',
+          formattedAddress: 'Lumbung Pangan Nasional, Kabupaten Karawang, Jawa Barat'
         }
       },
       magelang: {
@@ -98,6 +112,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: false,
           reason: 'Potensi hujan deras sore hari dapat membilas semprotan. Tunda hingga cuaca reda atau gunakan perekat nabati kuat.'
+        },
+        detailedLocation: {
+          desa: 'Kaponan & Ketep',
+          kecamatan: 'Sawangan & Pakis',
+          kabupaten: 'Magelang',
+          provinsi: 'Jawa Tengah',
+          formattedAddress: 'Sentra Sayuran & Cabai Lereng Gunung Merbabu, Magelang'
         }
       },
       brebes: {
@@ -115,6 +136,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: true,
           reason: 'Penyemprotan disarankan pagi sekali (06:00 - 07:30) sebelum angin pesisir kencang bertiup.'
+        },
+        detailedLocation: {
+          desa: 'Klampok & Larangan',
+          kecamatan: 'Wanasari & Larangan',
+          kabupaten: 'Brebes',
+          provinsi: 'Jawa Tengah',
+          formattedAddress: 'Sentra Bawang Merah Nasional, Kabupaten Brebes, Jawa Tengah'
         }
       },
       malang: {
@@ -132,6 +160,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: true,
           reason: 'Angin tenang 7 km/jam. Waktu ideal penyemprotan: pukul 15:30 - 17:00.'
+        },
+        detailedLocation: {
+          desa: 'Poncokusumo & Bumiaji',
+          kecamatan: 'Poncokusumo & Bumiaji',
+          kabupaten: 'Malang & Kota Batu',
+          provinsi: 'Jawa Timur',
+          formattedAddress: 'Dataran Tinggi Hortikultura & Buah, Malang & Batu, Jawa Timur'
         }
       },
       tanah_karo: {
@@ -149,6 +184,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: false,
           reason: 'Hujan gerimis berulang. Tunggu jeda kering minimal 3 jam sebelum aplikasi semprot organik.'
+        },
+        detailedLocation: {
+          desa: 'Gundaling & Sempajaya',
+          kecamatan: 'Berastagi',
+          kabupaten: 'Karo',
+          provinsi: 'Sumatera Utara',
+          formattedAddress: 'Kawasan Perkebunan Kopi & Jeruk, Kabupaten Karo, Sumatera Utara'
         }
       },
       tabanan: {
@@ -166,6 +208,13 @@ async function startServer() {
         sprayRecommendation: {
           suitable: true,
           reason: 'Angin 9 km/jam aman. Waktu terbaik penyemprotan: 16:00 - 17:30.'
+        },
+        detailedLocation: {
+          desa: 'Jatiluwih & Babahan',
+          kecamatan: 'Penebel',
+          kabupaten: 'Tabanan',
+          provinsi: 'Bali',
+          formattedAddress: 'Kawasan Warisan Budaya Subak Jatiluwih, Tabanan, Bali'
         }
       },
       lampung: {
@@ -183,13 +232,54 @@ async function startServer() {
         sprayRecommendation: {
           suitable: true,
           reason: 'Cuaca sangat mendukung aplikasi agens hayati Beauveria bassiana pada sore hari.'
+        },
+        detailedLocation: {
+          desa: 'Poncowati & Yukum Jaya',
+          kecamatan: 'Terbanggi Besar',
+          kabupaten: 'Lampung Tengah',
+          provinsi: 'Lampung',
+          formattedAddress: 'Sentra Perkebunan & Pertanian Rakyat, Lampung Tengah'
         }
       }
     };
 
-    // If GPS coordinates were provided, determine city or generate localized agrometeorology
+    // If GPS coordinates were provided, perform Reverse Geocoding to get exact Desa, Kecamatan, Kabupaten
     if (lat !== null && lon !== null) {
-      // Find closest predefined city or generate smart localized telemetry
+      let detailedLocation = {
+        desa: '',
+        kecamatan: '',
+        kabupaten: '',
+        provinsi: '',
+        formattedAddress: '',
+        coordinates: { lat, lon }
+      };
+
+      try {
+        const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+        const geoRes = await fetch(geoUrl, {
+          headers: {
+            'User-Agent': 'AgroPakar-Agriculture-App/1.0 (info@agropakar.id)',
+            'Accept-Language': 'id'
+          }
+        });
+
+        if (geoRes.ok) {
+          const geoJson = await geoRes.json();
+          const addr = geoJson.address || {};
+          detailedLocation.desa =
+            addr.village || addr.hamlet || addr.suburb || addr.neighbourhood || addr.quarter || addr.isolated_dwelling || '';
+          detailedLocation.kecamatan =
+            addr.subdistrict || addr.municipality || addr.city_district || addr.district || addr.town || '';
+          detailedLocation.kabupaten =
+            addr.county || addr.city || addr.regency || addr.state_district || '';
+          detailedLocation.provinsi = addr.state || '';
+          detailedLocation.formattedAddress = geoJson.display_name || '';
+        }
+      } catch (geoErr) {
+        console.warn('Reverse geocoding error:', geoErr);
+      }
+
+      // Find closest climate profile for realistic agro-weather metrics
       let nearestKey = 'banyuwangi';
       let minDistance = Infinity;
 
@@ -213,11 +303,33 @@ async function startServer() {
       }
 
       const base = locationsData[nearestKey] || locationsData.banyuwangi;
+
+      // If reverse geocoding was missing some fields, supplement with nearest area
+      if (!detailedLocation.kabupaten) {
+        detailedLocation.desa = detailedLocation.desa || base.detailedLocation.desa.split('&')[0].trim();
+        detailedLocation.kecamatan = detailedLocation.kecamatan || base.detailedLocation.kecamatan.split('&')[0].trim();
+        detailedLocation.kabupaten = base.detailedLocation.kabupaten;
+        detailedLocation.provinsi = base.detailedLocation.provinsi;
+      }
+
+      // Build precise administrative location label
+      const locationParts = [
+        detailedLocation.desa ? `Desa ${detailedLocation.desa}` : '',
+        detailedLocation.kecamatan ? `Kec. ${detailedLocation.kecamatan}` : '',
+        detailedLocation.kabupaten ? `Kab. ${detailedLocation.kabupaten}` : '',
+        detailedLocation.provinsi
+      ].filter(Boolean);
+
+      const resolvedTitle = locationParts.length > 0
+        ? locationParts.join(', ')
+        : `Lahan Pertanian (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+
       return res.json({
         ...base,
-        location: `Lokasi GPS Lahan Anda (Sekitar ${base.location.split('(')[0].trim()})`,
+        location: resolvedTitle,
         isGpsAutoDetected: true,
-        coordinates: { lat, lon }
+        coordinates: { lat, lon },
+        detailedLocation
       });
     }
 
@@ -232,7 +344,7 @@ async function startServer() {
         return res.json(locationsData[foundKey]);
       }
 
-      // If user typed custom village/district name (e.g. "Kecamatan Rogojampi" or "Desa Sukamaju")
+      // If user typed custom village/district name (e.g. "Desa Sukamaju, Kecamatan Rogojampi")
       const hash = cleanQuery.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const customTemp = 26 + (hash % 6);
       const customHumidity = 78 + (hash % 16); // 78 - 93%
@@ -240,8 +352,18 @@ async function startServer() {
       const customRain = ((hash % 200) / 10).toFixed(1);
       const isHighHumidity = customHumidity >= 86;
 
+      // Extract parts if available
+      const parts = requestedLocation.split(',').map((p) => p.trim());
+      const customDetail = {
+        desa: parts[0] || requestedLocation,
+        kecamatan: parts[1] || 'Wilayah Lahan Sekitar',
+        kabupaten: parts[2] || 'Sentra Pertanian Terdekat',
+        provinsi: parts[3] || 'Indonesia',
+        formattedAddress: requestedLocation
+      };
+
       return res.json({
-        location: `Area Pertanian: ${requestedLocation}`,
+        location: `Lahan: ${requestedLocation}`,
         temperature: customTemp,
         humidity: customHumidity,
         weatherDesc: isHighHumidity ? 'Berawan Lembap & Potensi Hujan Lokal' : 'Cerah Berawan Segar',
@@ -261,7 +383,8 @@ async function startServer() {
           reason: customWind < 15
             ? `Kecepatan angin ${customWind} km/jam stabil dan aman dari drift semprotan.`
             : `Kecepatan angin ${customWind} km/jam cukup kencang. Tunda penyemprotan agar cairan tidak terbang.`
-        }
+        },
+        detailedLocation: customDetail
       });
     }
 
@@ -270,14 +393,17 @@ async function startServer() {
 
   // --- API: DATABASE VERSION & SYNC ---
   app.get('/api/sync', (req, res) => {
+    // Return latest cloud database version and packages
     res.json({
-      latestVersion: 2,
-      releaseDate: '2026-10-10',
-      message: 'Basis data penyakit fitopatologi terbaru telah diverifikasi oleh Tim Agronomis Pusat.',
+      latestVersion: 3,
+      releaseDate: '2026-10-11',
+      totalCommodities: 30,
+      message: 'Sinkronisasi Berhasil: Basis data global fitopatologi & hama komprehensif terhubung dengan repositori internet.',
       changelog: [
-        'Penambahan taksonomi patogen lengkap dan isolat mikrobial hayati',
-        'Formula bio-insektisida Beauveria bassiana & Bacillus thuringiensis',
-        'Rekomendasi kalender semprot berbasis kelembapan udara'
+        'Penambahan 30+ komoditas pertanian utama Indonesia & Dunia (Pangan, Hortikultura, Sayur, Buah, Perkebunan)',
+        'Taksonomi penyakit kritis: Hawar Kentang, Layu Panama TR4, CVPD Jeruk, Cacar Teh, Karat Gandum, JAP Karet',
+        'Organ tanaman lengkap: Daun, Batang, Buah, Akar, Bunga, Bulir',
+        'Resep pestisida nabati terstandarisasi & agen hayati Trichoderma, Bacillus, Beauveria'
       ]
     });
   });

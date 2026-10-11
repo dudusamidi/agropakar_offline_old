@@ -1,15 +1,17 @@
 import React from 'react';
-import { History, Trash2, Calendar, Sparkles, Leaf, CheckCircle2 } from 'lucide-react';
+import { History, Trash2, Calendar, Sparkles, Leaf, CheckCircle2, ShieldCheck, Lock } from 'lucide-react';
 import { DiagnosisHistoryItem } from '../types';
 
 interface HistorySectionProps {
   history: DiagnosisHistoryItem[];
   onClearHistory: () => void;
+  onOpenAdminLogin?: () => void;
 }
 
 export const HistorySection: React.FC<HistorySectionProps> = ({
   history,
-  onClearHistory
+  onClearHistory,
+  onOpenAdminLogin
 }) => {
   return (
     <div className="space-y-4">
@@ -24,7 +26,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
               Riwayat Diagnosa Lahan Anda
             </h3>
             <p className="text-xs text-stone-600 mt-0.5 leading-relaxed">
-              Catatan hasil identifikasi penyakit tanaman yang pernah dilakukan baik melalui pohon gejala maupun kamera AI. Tersimpan aman di memori lokal ponsel.
+              Catatan hasil identifikasi penyakit tanaman yang pernah dilakukan baik melalui pohon gejala maupun kamera AI. Tersimpan aman di memori lokal ponsel (Database Lokal Offline).
             </p>
           </div>
         </div>
@@ -131,11 +133,38 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                 </span>
                 <span className="text-emerald-700 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Tersimpan di Memori HP
+                  Tersimpan di Memori HP (Offline)
                 </span>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Admin Entrance Callout */}
+      {onOpenAdminLogin && (
+        <div className="bg-gradient-to-r from-emerald-900 to-teal-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-amber-300 shrink-0">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm text-white">
+                Portal Pengelolaan Admin Agronomis
+              </h4>
+              <p className="text-xs text-emerald-200">
+                Khusus petugas untuk update basis data penyakit, pohon gejala & siaran peringatan.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenAdminLogin}
+            className="w-full sm:w-auto px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm shrink-0"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Masuk Admin (Default: admin/admin)</span>
+          </button>
         </div>
       )}
     </div>

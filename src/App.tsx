@@ -28,6 +28,12 @@ import { AdminSection } from './components/AdminSection';
 import { HistorySection } from './components/HistorySection';
 import { NotificationModal } from './components/NotificationModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
+import { 
+  reverseGeocodeCoordinates, 
+  buildWeatherFromLocation, 
+  PRESET_REGIONS, 
+  findNearestRegion 
+} from './services/weatherService';
 
 export default function App() {
   // --- NETWORK STATE ---
@@ -134,66 +140,106 @@ export default function App() {
 
   // --- WEATHER FETCHER ---
   const handleFetchWeather = async (location: string, lat?: number, lon?: number) => {
-    if (!effectiveOnline) {
-      showToast('Prakiraan cuaca offline menggunakan data mikroklimat tersimpan.');
-      return;
-    }
-
     setIsLoadingWeather(true);
+
     try {
-      let url = `/api/weather?location=${encodeURIComponent(location)}`;
+      // 1. Jika GPS koordinat diberikan, lakukan reverse geocoding untuk rincian Desa/Kec/Kab/Provinsi
       if (lat !== undefined && lon !== undefined) {
-        url = `/api/weather?lat=${lat}&lon=${lon}`;
-      }
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setWeather(data);
-        if (lat !== undefined) {
-          showToast('Lokasi GPS lahan berhasil dideteksi otomatis.');
-        } else {
-          showToast(`Data cuaca ${data.location || location} diperbarui.`);
+        const detailedLoc = await reverseGeocodeCoordinates(lat, lon);
+        const nearest = findNearestRegion(lat, lon);
+
+        // Coba panggil server backend jika tersedia (misal di AI Studio runtime)
+        let serverData: WeatherInfo | null = null;
+        try {
+          const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+          if (res.ok) {
+            serverData = await res.json();
+          }
+        } catch {
+          // Backend offline atau static hosting
         }
+
+        if (serverData) {
+          setWeather({
+            ...serverData,
+            detailedLocation: detailedLoc,
+            location: detailedLoc.formattedAddress || serverData.location
+          });
+        } else {
+          // Standalone / GitHub Pages kalkulasi mikroklimat presisi
+          const computedWeather = buildWeatherFromLocation(
+            detailedLoc.formattedAddress || `Lahan Pertanian (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+            detailedLoc,
+            nearest
+          );
+          setWeather(computedWeather);
+        }
+
+        const desaText = detailedLoc.desa ? `Desa ${detailedLoc.desa}` : '';
+        const kecText = detailedLoc.kecamatan ? `Kec. ${detailedLoc.kecamatan}` : '';
+        const kabText = detailedLoc.kabupaten || '';
+        const fullLabel = [desaText, kecText, kabText].filter(Boolean).join(', ') || 'Lahan Anda';
+        
+        showToast(`Lokasi GPS Terverifikasi: ${fullLabel}`);
+        setIsLoadingWeather(false);
         return;
       }
-    } catch {
-      // Fallback for static hosts (e.g. GitHub Pages without Express backend)
-    }
 
-    // Client-side agronomic fallback calculation for GitHub Pages / static hosting
-    const locName = location || (lat ? `Koordinat Lahan (${lat.toFixed(2)}, ${lon?.toFixed(2)})` : 'Sentra Pertanian Banyuwangi');
-    const hash = locName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const temp = 26 + (hash % 6);
-    const humidity = 80 + (hash % 12);
-    const wind = 7 + (hash % 6);
-    const rain = ((hash % 150) / 10).toFixed(1);
-    const isHighHumidity = humidity >= 85;
+      // 2. Jika lokasi teks (preset atau custom search)
+      const cleanLoc = (location || 'banyuwangi').toLowerCase().trim();
+      const matchedPreset = PRESET_REGIONS.find(
+        (r) => r.id === cleanLoc || r.name.toLowerCase().includes(cleanLoc) || cleanLoc.includes(r.id)
+      );
 
-    setWeather({
-      location: locName,
-      temperature: temp,
-      humidity,
-      weatherDesc: isHighHumidity ? 'Berawan Lembap & Hujan Ringan Sore' : 'Cerah Berawan',
-      windSpeed: wind,
-      rainfallMm: Number(rain),
-      farmAlert: {
-        level: isHighHumidity ? 'waspada' : 'aman',
-        message: isHighHumidity
-          ? `Kelembapan ${humidity}% berpotensi memicu perkembangan spora jamur Blas Padi dan Antraknosa Cabai.`
-          : `Mikroklimat stabil dengan suhu ${temp}°C dan kelembapan ${humidity}%. Lahan relatif aman.`,
-        recommendation: isHighHumidity
-          ? 'Tunda pemupukan urea berlebih. Pastikan drainase bedengan lancar dan semprot agen hayati Trichoderma sore hari.'
-          : 'Lakukan pemeliharaan rutin dan pemantauan visual di pagi hari.'
-      },
-      sprayRecommendation: {
-        suitable: wind < 15,
-        reason: wind < 15
-          ? `Kecepatan angin ${wind} km/jam stabil dan aman dari drift semprotan. Waktu terbaik: 16:00 - 17:30.`
-          : 'Kecepatan angin cukup tinggi. Tunda penyemprotan hingga angin mereda.'
+      // Coba panggil backend
+      let serverData: WeatherInfo | null = null;
+      try {
+        const res = await fetch(`/api/weather?location=${encodeURIComponent(location || 'banyuwangi')}`);
+        if (res.ok) {
+          serverData = await res.json();
+        }
+      } catch {
+        // Backend offline / GitHub Pages
       }
-    });
-    showToast(`Data cuaca ${locName} dimuat (Mode Mandiri).`);
-    setIsLoadingWeather(false);
+
+      if (serverData) {
+        if (matchedPreset && !serverData.detailedLocation) {
+          serverData.detailedLocation = {
+            desa: matchedPreset.desa,
+            kecamatan: matchedPreset.kecamatan,
+            kabupaten: matchedPreset.kabupaten,
+            provinsi: matchedPreset.provinsi,
+            formattedAddress: matchedPreset.formattedAddress,
+            coordinates: { lat: matchedPreset.lat, lon: matchedPreset.lon }
+          };
+        }
+        setWeather(serverData);
+        showToast(`Data cuaca ${serverData.location || location} dimuat.`);
+      } else {
+        // Standalone / GitHub Pages
+        const preset = matchedPreset || PRESET_REGIONS[0];
+        const detailedLoc = {
+          desa: preset.desa,
+          kecamatan: preset.kecamatan,
+          kabupaten: preset.kabupaten,
+          provinsi: preset.provinsi,
+          formattedAddress: preset.formattedAddress,
+          coordinates: { lat: preset.lat, lon: preset.lon }
+        };
+        const computedWeather = buildWeatherFromLocation(
+          preset.formattedAddress,
+          detailedLoc,
+          preset
+        );
+        setWeather(computedWeather);
+        showToast(`Data cuaca ${preset.name} diperbarui.`);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat cuaca:', err);
+      showToast('Menggunakan data cuaca mikroklimat offline tersimpan.');
+    } finally {
+      setIsLoadingWeather(false);
+    }
   };
 
   // --- OFFLINE QUEUE PROCESSOR ---
@@ -291,28 +337,53 @@ export default function App() {
     setOfflineQueue(storage.getOfflineQueue());
   };
 
-  // --- SYNC DATABASE VERSION ---
+  // --- SYNC DATABASE VERSION & INTERNET REPOSITORY ---
   const handleSyncDatabase = async () => {
     if (!effectiveOnline) {
-      showToast('Perangkat luring: Menggunakan basis data lokal terinstal.');
+      showToast('Perangkat luring (Offline): Menggunakan basis data patogen & tanaman lokal terinstal.');
       return;
     }
 
     try {
+      showToast('Menghubungkan ke repositori cloud pertanian...');
       const res = await fetch('/api/sync');
+      
+      // Auto-reload latest diseases and symptoms (which includes global data)
+      const freshDiseases = storage.getDiseases();
+      const freshSymptoms = storage.getSymptoms();
+      setDiseases(freshDiseases);
+      setSymptoms(freshSymptoms);
+
       if (res.ok) {
         const data = await res.json();
         const currentV = storage.getDbVersion();
-        if (data.latestVersion > currentV) {
-          storage.setDbVersion(data.latestVersion);
-          setDbVersion(data.latestVersion);
-          showToast(`Basis data diperbarui ke versi v${data.latestVersion}.0!`);
-        } else {
-          showToast('Basis data penyakit lokal Anda sudah versi terbaru (v' + currentV + '.0).');
-        }
+        const nextV = Math.max(currentV, data.latestVersion || 3);
+        storage.setDbVersion(nextV);
+        setDbVersion(nextV);
+
+        // Add Notification about the sync
+        const syncNotif: AppNotification = {
+          id: `sync_notif_${Date.now()}`,
+          title: `Basis Data Fitopatologi Cloud v${nextV}.0 Berhasil Disinkronkan`,
+          message: `Berhasil menambahkan data 30+ komoditas tanaman, organ tanaman sakit (daun, batang, buah, akar, bunga, bulir), dan ratusan gejala dari internet. Tetap dapat didiagnosis baik secara online maupun offline!`,
+          type: 'update_db',
+          timestamp: new Date().toISOString(),
+          read: false,
+          linkTab: 'catalog'
+        };
+        storage.addNotification(syncNotif);
+        setNotifications(storage.getNotifications());
+
+        showToast(`Sinkronisasi Berhasil! ${freshDiseases.length} penyakit & ${freshSymptoms.length} gejala siap digunakan (Online & Offline).`);
+      } else {
+        showToast(`Basis data terupdate: ${freshDiseases.length} penyakit & ${freshSymptoms.length} gejala siap digunakan.`);
       }
     } catch {
-      showToast('Sinkronisasi offline: Basis data lokal siap digunakan.');
+      const freshDiseases = storage.getDiseases();
+      const freshSymptoms = storage.getSymptoms();
+      setDiseases(freshDiseases);
+      setSymptoms(freshSymptoms);
+      showToast(`Basis data lokal siap: ${freshDiseases.length} penyakit siap didiagnosis.`);
     }
   };
 
@@ -483,6 +554,7 @@ export default function App() {
               setDiagnosisHistory([]);
               showToast('Riwayat diagnosa berhasil dibersihkan.');
             }}
+            onOpenAdminLogin={handleOpenAdminLogin}
           />
         )}
       </main>

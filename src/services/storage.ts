@@ -98,7 +98,20 @@ export const storage = {
         this.saveDiseases(INITIAL_DISEASES);
         return INITIAL_DISEASES;
       }
-      return JSON.parse(data);
+      const parsed: Disease[] = JSON.parse(data);
+      // Auto-merge with INITIAL_DISEASES if new global diseases were added
+      const existingIds = new Set(parsed.map((d) => d.id));
+      let hasNew = false;
+      for (const item of INITIAL_DISEASES) {
+        if (!existingIds.has(item.id)) {
+          parsed.push(item);
+          hasNew = true;
+        }
+      }
+      if (hasNew) {
+        this.saveDiseases(parsed);
+      }
+      return parsed;
     } catch {
       return INITIAL_DISEASES;
     }
@@ -146,7 +159,20 @@ export const storage = {
         this.saveSymptoms(INITIAL_SYMPTOMS);
         return INITIAL_SYMPTOMS;
       }
-      return JSON.parse(data);
+      const parsed: Symptom[] = JSON.parse(data);
+      // Auto-merge new symptoms
+      const existingIds = new Set(parsed.map((s) => s.id));
+      let hasNew = false;
+      for (const item of INITIAL_SYMPTOMS) {
+        if (!existingIds.has(item.id)) {
+          parsed.push(item);
+          hasNew = true;
+        }
+      }
+      if (hasNew) {
+        this.saveSymptoms(parsed);
+      }
+      return parsed;
     } catch {
       return INITIAL_SYMPTOMS;
     }

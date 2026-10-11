@@ -1,4 +1,5 @@
 import { Disease, Symptom, WeatherInfo, ForumPost, AppNotification } from '../types';
+import { GLOBAL_ADDITIONAL_SYMPTOMS, GLOBAL_ADDITIONAL_DISEASES } from './globalCropsData';
 
 export const INITIAL_SYMPTOMS: Symptom[] = [
   // --- PADI ---
@@ -247,7 +248,8 @@ export const INITIAL_SYMPTOMS: Symptom[] = [
     description: 'Bintik coklat berpusar di permukaan bawah daun, daun rontok prematur sebelum polong terisi penuh.',
     mb: 0.88,
     md: 0.05
-  }
+  },
+  ...GLOBAL_ADDITIONAL_SYMPTOMS
 ];
 
 export const INITIAL_DISEASES: Disease[] = [
@@ -770,7 +772,8 @@ export const INITIAL_DISEASES: Disease[] = [
     certaintyFactorBase: 0.96,
     updatedAt: '2026-10-06',
     version: 1
-  }
+  },
+  ...GLOBAL_ADDITIONAL_DISEASES
 ];
 
 export const INITIAL_WEATHER: WeatherInfo = {

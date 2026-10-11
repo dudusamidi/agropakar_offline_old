@@ -14,6 +14,7 @@ import {
   PlusCircle
 } from 'lucide-react';
 import { Disease, CropType, PathogenType, SeverityLevel, AppNotification, EcoTreatment } from '../types';
+import { ALL_CROPS } from '../data/cropsMetadata';
 
 interface AdminSectionProps {
   diseases: Disease[];
@@ -479,15 +480,11 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
                     onChange={(e) => setFormCrop(e.target.value as CropType)}
                     className="w-full p-2 rounded-xl border border-stone-300 font-bold bg-stone-50"
                   >
-                    <option value="padi">Padi</option>
-                    <option value="cabai">Cabai</option>
-                    <option value="jagung">Jagung</option>
-                    <option value="tomat">Tomat</option>
-                    <option value="bawang">Bawang</option>
-                    <option value="kopi">Kopi</option>
-                    <option value="kakao">Kakao</option>
-                    <option value="sawit">Sawit</option>
-                    <option value="kedelai">Kedelai</option>
+                    {ALL_CROPS.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.emoji} {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

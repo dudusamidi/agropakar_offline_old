@@ -10,6 +10,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Disease, CropType, PathogenType } from '../types';
+import { ALL_CROPS, CROP_CATEGORIES } from '../data/cropsMetadata';
 
 interface CatalogSectionProps {
   diseases: Disease[];
@@ -23,31 +24,45 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
   onSelectDisease
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCropCategory, setSelectedCropCategory] = useState<string>('all');
   const [selectedCrop, setSelectedCrop] = useState<CropType | 'all'>('all');
   const [selectedPathogen, setSelectedPathogen] = useState<PathogenType | 'all'>('all');
 
+  // Filter diseases based on search, commodity, category, and pathogen
   const filteredDiseases = diseases.filter((d) => {
     const matchSearch =
       d.nameIndo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.scientificName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.symptomSummary.toLowerCase().includes(searchQuery.toLowerCase());
+      d.symptomSummary.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.cropType.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Commodity match
     const matchCrop = selectedCrop === 'all' || d.cropType === selectedCrop;
+    
+    // Category match
+    const cropMeta = ALL_CROPS.find((c) => c.id === d.cropType);
+    const matchCategory =
+      selectedCropCategory === 'all' || (cropMeta && cropMeta.category === selectedCropCategory);
+
+    // Pathogen match
     const matchPathogen = selectedPathogen === 'all' || d.pathogenType === selectedPathogen;
-    return matchSearch && matchCrop && matchPathogen;
+
+    return matchSearch && matchCrop && matchCategory && matchPathogen;
   });
 
-  const crops: { id: CropType | 'all'; label: string; emoji: string }[] = [
-    { id: 'all', label: 'Semua', emoji: '🌱' },
-    { id: 'padi', label: 'Padi', emoji: '🌾' },
-    { id: 'cabai', label: 'Cabai', emoji: '🌶️' },
-    { id: 'jagung', label: 'Jagung', emoji: '🌽' },
-    { id: 'tomat', label: 'Tomat', emoji: '🍅' },
-    { id: 'bawang', label: 'Bawang', emoji: '🧅' },
-    { id: 'kopi', label: 'Kopi', emoji: '☕' },
-    { id: 'kakao', label: 'Kakao', emoji: '🍫' },
-    { id: 'sawit', label: 'Sawit', emoji: '🌴' },
-    { id: 'kedelai', label: 'Kedelai', emoji: '🫘' }
+  const commoditiesList: { id: CropType | 'all'; label: string; emoji: string; category?: string }[] = [
+    { id: 'all', label: 'Semua Komoditas', emoji: '🌱' },
+    ...ALL_CROPS.map((c) => ({
+      id: c.id,
+      label: c.name,
+      emoji: c.emoji,
+      category: c.category
+    }))
   ];
+
+  const visibleCommodities = commoditiesList.filter(
+    (c) => c.id === 'all' || selectedCropCategory === 'all' || c.category === selectedCropCategory
+  );
 
   return (
     <div className="space-y-4">
@@ -82,13 +97,40 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
           />
         </div>
 
-        {/* Commodity Filter Chips */}
-        <div>
-          <label className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-1.5">
-            Filter Komoditas Tanaman
-          </label>
+        {/* Category Pills & Commodity Filter */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+              Filter Komoditas Tanaman ({filteredDiseases.length} Penyakit Ditemukan)
+            </label>
+            <span className="text-[11px] text-stone-400">
+              Total {diseases.length} patogen terdaftar
+            </span>
+          </div>
+
+          {/* Kategori Selector */}
+          <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
+            {CROP_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setSelectedCropCategory(cat.id);
+                  setSelectedCrop('all');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+                  selectedCropCategory === cat.id
+                    ? 'bg-emerald-700 text-white font-bold shadow-sm'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Commodity Chips */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            {crops.map((c) => (
+            {visibleCommodities.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setSelectedCrop(c.id)}

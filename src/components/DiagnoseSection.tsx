@@ -25,6 +25,7 @@ import {
   OfflineQueueItem 
 } from '../types';
 import { runExpertDiagnosis } from '../services/inferenceEngine';
+import { ALL_CROPS, CROP_CATEGORIES, PLANT_PARTS_LIST } from '../data/cropsMetadata';
 
 interface DiagnoseSectionProps {
   isOnline: boolean;
@@ -64,18 +65,27 @@ export const DiagnoseSection: React.FC<DiagnoseSectionProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Crops list with display info
-  const cropList: { id: CropType; name: string; emoji: string }[] = [
-    { id: 'padi', name: 'Padi', emoji: '🌾' },
-    { id: 'cabai', name: 'Cabai', emoji: '🌶️' },
-    { id: 'jagung', name: 'Jagung', emoji: '🌽' },
-    { id: 'tomat', name: 'Tomat', emoji: '🍅' },
-    { id: 'bawang', name: 'Bawang', emoji: '🧅' },
-    { id: 'kopi', name: 'Kopi', emoji: '☕' },
-    { id: 'kakao', name: 'Kakao', emoji: '🍫' },
-    { id: 'sawit', name: 'Kelapa Sawit', emoji: '🌴' },
-    { id: 'kedelai', name: 'Kedelai', emoji: '🫘' }
-  ];
+  const [selectedCropCategory, setSelectedCropCategory] = useState<string>('all');
+  const [cropSearchTerm, setCropSearchTerm] = useState<string>('');
+
+  // Enhanced Crops list from ALL_CROPS
+  const allAvailableCrops = ALL_CROPS.map((c) => ({
+    id: c.id,
+    name: c.name,
+    emoji: c.emoji,
+    category: c.category,
+    scientificName: c.scientificName
+  }));
+
+  // Filter crops based on category and search
+  const visibleCrops = allAvailableCrops.filter((c) => {
+    const matchCategory = selectedCropCategory === 'all' || c.category === selectedCropCategory;
+    const matchSearch =
+      cropSearchTerm === '' ||
+      c.name.toLowerCase().includes(cropSearchTerm.toLowerCase()) ||
+      c.scientificName.toLowerCase().includes(cropSearchTerm.toLowerCase());
+    return matchCategory && matchSearch;
+  });
 
   // Filter symptoms based on crop & part
   const filteredSymptoms = symptoms.filter((s) => {
@@ -290,12 +300,45 @@ export const DiagnoseSection: React.FC<DiagnoseSectionProps> = ({
           </div>
 
           {/* Step 1: Pilih Komoditas Tanaman */}
-          <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-2.5">
-            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
-              Langkah 1: Pilih Jenis Tanaman
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {cropList.map((crop) => (
+          <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
+                  Langkah 1: Pilih Jenis Tanaman (Indonesia & Dunia)
+                </label>
+                <span className="text-[11px] text-stone-500">
+                  Tersedia {allAvailableCrops.length} komoditas pangan, sayur, buah & perkebunan
+                </span>
+              </div>
+              <input
+                type="text"
+                value={cropSearchTerm}
+                onChange={(e) => setCropSearchTerm(e.target.value)}
+                placeholder="Cari tanaman (misal: pisang, kentang, teh, gandum)..."
+                className="px-3 py-1.5 rounded-xl border border-stone-300 text-xs bg-stone-50 focus:ring-2 focus:ring-emerald-500 w-full sm:w-64"
+              />
+            </div>
+
+            {/* Kategori Tab Filter */}
+            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
+              {CROP_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCropCategory(cat.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+                    selectedCropCategory === cat.id
+                      ? 'bg-emerald-700 text-white font-bold shadow-sm'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Grid Komoditas */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto pr-1">
+              {visibleCrops.map((crop) => (
                 <button
                   key={crop.id}
                   onClick={() => {
@@ -303,14 +346,17 @@ export const DiagnoseSection: React.FC<DiagnoseSectionProps> = ({
                     setSelectedSymptoms([]);
                     setRuleResults(null);
                   }}
-                  className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                  className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
                     selectedCrop === crop.id
                       ? 'bg-emerald-600 text-white border-emerald-700 shadow font-bold ring-2 ring-emerald-300'
                       : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100 font-medium'
                   }`}
                 >
                   <span className="text-xl">{crop.emoji}</span>
-                  <span className="text-xs truncate max-w-full">{crop.name}</span>
+                  <span className="text-xs truncate max-w-full font-semibold">{crop.name}</span>
+                  <span className="text-[9px] opacity-75 italic truncate max-w-full">
+                    {crop.scientificName}
+                  </span>
                 </button>
               ))}
             </div>
@@ -318,21 +364,37 @@ export const DiagnoseSection: React.FC<DiagnoseSectionProps> = ({
 
           {/* Step 2: Filter Bagian Tanaman */}
           <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-sm space-y-2">
-            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
-              Langkah 2: Bagian Tanaman yang Sakit
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
+                Langkah 2: Bagian Tanaman yang Sakit
+              </label>
+              <span className="text-[11px] text-emerald-700 font-medium">
+                Komoditas Aktif: <strong className="capitalize">{selectedCrop}</strong>
+              </span>
+            </div>
             <div className="flex flex-wrap gap-1.5">
-              {(['semua', 'daun', 'batang', 'buah', 'akar', 'bulir'] as (PlantPart | 'semua')[]).map((part) => (
+              <button
+                onClick={() => setFilterPart('semua')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filterPart === 'semua'
+                    ? 'bg-stone-900 text-white'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                🌱 Semua Bagian
+              </button>
+              {PLANT_PARTS_LIST.map((part) => (
                 <button
-                  key={part}
-                  onClick={() => setFilterPart(part)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
-                    filterPart === part
+                  key={part.id}
+                  onClick={() => setFilterPart(part.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all flex items-center gap-1 ${
+                    filterPart === part.id
                       ? 'bg-stone-900 text-white'
                       : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                   }`}
                 >
-                  {part}
+                  <span>{part.icon}</span>
+                  <span>{part.label}</span>
                 </button>
               ))}
             </div>
@@ -647,9 +709,9 @@ export const DiagnoseSection: React.FC<DiagnoseSectionProps> = ({
                 onChange={(e) => setCameraCrop(e.target.value as CropType)}
                 className="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-semibold bg-stone-50 focus:ring-2 focus:ring-emerald-500"
               >
-                {cropList.map((c) => (
+                {allAvailableCrops.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.emoji} {c.name}
+                    {c.emoji} {c.name} ({c.scientificName})
                   </option>
                 ))}
               </select>

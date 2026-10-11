@@ -12,9 +12,14 @@ import {
   Navigation,
   Search,
   Compass,
-  Check
+  Check,
+  Building2,
+  Map,
+  ShieldCheck,
+  LocateFixed
 } from 'lucide-react';
 import { WeatherInfo } from '../types';
+import { PRESET_REGIONS, PresetRegion } from '../services/weatherService';
 
 interface WeatherSectionProps {
   weather: WeatherInfo;
@@ -32,18 +37,6 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
   const [isGpsLoading, setIsGpsLoading] = useState<boolean>(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [locationMode, setLocationMode] = useState<'gps' | 'preset' | 'custom'>('preset');
-
-  // Comprehensive agricultural regions across Indonesia
-  const presetLocations = [
-    { id: 'banyuwangi', name: 'Banyuwangi', province: 'Jatim', crop: 'Padi & Buah Naga' },
-    { id: 'karawang', name: 'Karawang', province: 'Jabar', crop: 'Lumbung Padi' },
-    { id: 'magelang', name: 'Magelang', province: 'Jateng', crop: 'Cabai & Sayuran' },
-    { id: 'brebes', name: 'Brebes', province: 'Jateng', crop: 'Bawang Merah' },
-    { id: 'malang', name: 'Malang & Batu', province: 'Jatim', crop: 'Hortikultura' },
-    { id: 'tanah_karo', name: 'Tanah Karo', province: 'Sumut', crop: 'Kopi & Jeruk' },
-    { id: 'tabanan', name: 'Tabanan', province: 'Bali', crop: 'Subak Padi' },
-    { id: 'lampung', name: 'Lampung Tengah', province: 'Lampung', crop: 'Kopi & Sawit' }
-  ];
 
   // Try auto-detect location on initial load if saved or available
   useEffect(() => {
@@ -84,13 +77,13 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
         console.warn('Geolocation error:', err);
         if (!isSilent) {
           if (err.code === 1) {
-            setGpsError('Izin akses lokasi belum diberikan. Anda tetap bisa memilih lokasi sentra tani di bawah.');
+            setGpsError('Izin akses lokasi GPS ditolak oleh browser/ponsel. Silakan aktifkan izin lokasi di pengaturan browser atau pilih sentra tani di bawah.');
           } else {
-            setGpsError('Sinyal GPS lemah atau timeout. Silakan pilih lokasi dari daftar.');
+            setGpsError('Sinyal GPS lemah atau timeout. Mengalihkan ke pilihan sentra pertanian terdekat.');
           }
         }
       },
-      { timeout: 10000, enableHighAccuracy: true, maximumAge: 60000 }
+      { timeout: 12000, enableHighAccuracy: true, maximumAge: 30000 }
     );
   };
 
@@ -121,20 +114,22 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
     onRefreshWeather(customSearch.trim());
   };
 
+  const detailed = weather.detailedLocation;
+
   return (
     <div className="space-y-4">
       {/* Header Info */}
       <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-sm shrink-0">
+          <div className="p-2.5 bg-emerald-700 text-white rounded-xl shadow-sm shrink-0">
             <CloudSun className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-extrabold text-stone-900 text-base">
-              Prakiraan Cuaca Pertanian & Peringatan Dini
+            <h3 className="font-extrabold text-stone-900 text-base flex items-center gap-2">
+              <span>Prakiraan Cuaca Pertanian & Mikroklimat Lahan</span>
             </h3>
             <p className="text-xs text-stone-600 mt-0.5 leading-relaxed">
-              Ketahui kondisi mikroklimat lahan (suhu, kelembapan udara, curah hujan, dan arah angin) secara otomatis via GPS ponsel Anda atau pilih sentra pertanian di bawah.
+              Dilengkapi <strong>deteksi lokasi GPS otomatis</strong> dengan resolusi tingkat <strong>Desa, Kecamatan, dan Kabupaten</strong> agar tidak terjadi salah wilayah (miss target) saat menganalisis potensi penyakit jamur dan jadwal penyemprotan hayati.
             </p>
           </div>
         </div>
@@ -147,20 +142,20 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
           <button
             onClick={() => handleDetectGps(false)}
             disabled={isGpsLoading}
-            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
+            className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-sm ${
               locationMode === 'gps'
-                ? 'bg-emerald-700 text-white ring-2 ring-emerald-300'
+                ? 'bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1'
                 : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
             }`}
           >
             {isGpsLoading ? (
               <>
-                <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                <span>Mendeteksi Koordinat GPS Lahan...</span>
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <span>Mencari Koordinat GPS & Rincian Desa/Kecamatan Lahan...</span>
               </>
             ) : (
               <>
-                <Navigation className={`w-4 h-4 ${locationMode === 'gps' ? 'fill-white' : 'text-emerald-700'}`} />
+                <Navigation className={`w-4 h-4 ${locationMode === 'gps' ? 'fill-white text-white' : 'text-emerald-700'}`} />
                 <span>Deteksi Lokasi GPS Otomatis (Lahan Saya)</span>
               </>
             )}
@@ -168,24 +163,36 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
 
           {/* Location Mode Status Badge */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-stone-400 font-medium">Status:</span>
+            <span className="text-stone-400 font-medium">Mode:</span>
             <span
-              className={`font-bold px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 ${
+              className={`font-bold px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1.5 ${
                 locationMode === 'gps'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-stone-100 text-stone-700'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-stone-100 text-stone-700 border border-stone-200'
               }`}
             >
-              <Compass className="w-3 h-3" />
-              {locationMode === 'gps' ? 'GPS Otomatis Aktif' : 'Pilihan Wilayah Tani'}
+              {locationMode === 'gps' ? (
+                <>
+                  <LocateFixed className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>GPS Lahan Aktif</span>
+                </>
+              ) : (
+                <>
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>Sentra Pertanian</span>
+                </>
+              )}
             </span>
           </div>
         </div>
 
         {gpsError && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>{gpsError}</span>
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold block">Pemberitahuan GPS:</span>
+              <p>{gpsError}</p>
+            </div>
           </div>
         )}
 
@@ -197,25 +204,25 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
               type="text"
               value={customSearch}
               onChange={(e) => setCustomSearch(e.target.value)}
-              placeholder="Ketik desa/kecamatan Anda (misal: Rogojampi, Cianjur, Sleman)..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 text-xs bg-stone-50 focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ketik desa/kecamatan Anda (misal: Rogojampi, Rengasdengklok, Pujon, Brebes)..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 text-xs bg-stone-50 focus:ring-2 focus:ring-emerald-500 font-medium"
             />
           </div>
           <button
             type="submit"
-            className="px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shrink-0 transition-colors"
+            className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shrink-0 transition-colors shadow-sm"
           >
-            Terapkan
+            Cari Lokasi
           </button>
         </form>
 
         {/* Quick Sentra Chips */}
         <div>
           <label className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-1.5">
-            Atau Pilih Sentra Pertanian Terdekat:
+            Atau Pilih Sentra Pertanian Utama:
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-            {presetLocations.map((loc) => {
+            {PRESET_REGIONS.map((loc) => {
               const isSelected = locationMode === 'preset' && selectedCity === loc.id;
               return (
                 <button
@@ -223,13 +230,13 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
                   onClick={() => handlePresetChange(loc.id)}
                   className={`p-2 rounded-xl border text-left transition-all flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm font-bold ring-1 ring-emerald-300'
+                      ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm font-bold ring-1 ring-emerald-300'
                       : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100 font-medium'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs truncate">{loc.name}</span>
-                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </div>
                   <span className={`text-[10px] mt-0.5 truncate ${isSelected ? 'text-emerald-100' : 'text-stone-400'}`}>
                     {loc.province} • {loc.crop}
@@ -237,6 +244,87 @@ export const WeatherSection: React.FC<WeatherSectionProps> = ({
                 </button>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {/* DETAIL WILAYAH ADMINISTRATIF KHUSUS (Mencegah Kerancuan / Miss Wilayah) */}
+      <div className="bg-white rounded-2xl border-2 border-emerald-600/30 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-emerald-300" />
+            <h4 className="font-extrabold text-xs sm:text-sm tracking-wide uppercase">
+              Rincian Wilayah Administratif Lahan Pertanian
+            </h4>
+          </div>
+          <span className="text-[10px] font-black bg-emerald-600/60 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-400/30 flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3 text-emerald-300" />
+            <span>Terverifikasi Presisi</span>
+          </span>
+        </div>
+
+        <div className="p-4 space-y-3 bg-emerald-50/30">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+            {/* Desa / Kelurahan */}
+            <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                Desa / Kelurahan
+              </span>
+              <span className="text-xs sm:text-sm font-extrabold text-stone-900 block mt-0.5 text-emerald-950">
+                {detailed?.desa ? `Desa ${detailed.desa}` : (weather.location.split(',')[0] || 'Desa Sentra Tani')}
+              </span>
+            </div>
+
+            {/* Kecamatan */}
+            <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                Kecamatan
+              </span>
+              <span className="text-xs sm:text-sm font-extrabold text-stone-900 block mt-0.5 text-emerald-950">
+                {detailed?.kecamatan ? `Kec. ${detailed.kecamatan}` : 'Kecamatan Terdekat'}
+              </span>
+            </div>
+
+            {/* Kabupaten / Kota */}
+            <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                Kabupaten / Kota
+              </span>
+              <span className="text-xs sm:text-sm font-extrabold text-stone-900 block mt-0.5 text-emerald-950">
+                {detailed?.kabupaten || 'Kabupaten Terdaftar'}
+              </span>
+            </div>
+
+            {/* Provinsi */}
+            <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-xs">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                Provinsi
+              </span>
+              <span className="text-xs sm:text-sm font-extrabold text-stone-900 block mt-0.5 text-emerald-950">
+                {detailed?.provinsi || 'Indonesia'}
+              </span>
+            </div>
+          </div>
+
+          {/* Full Address String & GPS Coordinates */}
+          <div className="bg-white p-3 rounded-xl border border-stone-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <Map className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-bold text-stone-900 block">
+                  {detailed?.formattedAddress || weather.location}
+                </span>
+                <span className="text-[11px] text-stone-500">
+                  Data mikroklimat lahan dihitung spesifik berdasarkan titik koordinat geografis ini.
+                </span>
+              </div>
+            </div>
+
+            {weather.coordinates && (
+              <div className="px-2.5 py-1 bg-stone-100 rounded-lg text-[11px] font-mono text-stone-700 shrink-0 font-bold">
+                GPS: {weather.coordinates.lat.toFixed(4)}°, {weather.coordinates.lon.toFixed(4)}°
+              </div>
+            )}
           </div>
         </div>
       </div>

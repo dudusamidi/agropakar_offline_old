@@ -7,7 +7,29 @@ export type CropType =
   | 'bawang' 
   | 'kopi' 
   | 'kakao' 
-  | 'sawit';
+  | 'sawit'
+  | 'kentang'
+  | 'pisang'
+  | 'singkong'
+  | 'tebu'
+  | 'jeruk'
+  | 'pepaya'
+  | 'mangga'
+  | 'kacang_tanah'
+  | 'semangka'
+  | 'terong'
+  | 'mentimun'
+  | 'kubis'
+  | 'teh'
+  | 'karet'
+  | 'gandum'
+  | 'apel'
+  | 'anggur'
+  | 'kapas'
+  | 'tembakau'
+  | 'ubi_jalar'
+  | 'alpukat'
+  | string;
 
 export type PathogenType = 'jamur' | 'bakteri' | 'virus' | 'hama' | 'fisiologis';
 
@@ -121,6 +143,15 @@ export interface ForumPost {
   createdAt: string;
 }
 
+export interface DetailedLocation {
+  desa?: string;
+  kecamatan?: string;
+  kabupaten?: string;
+  provinsi?: string;
+  formattedAddress?: string;
+  coordinates?: { lat: number; lon: number };
+}
+
 export interface WeatherInfo {
   location: string;
   temperature: number;
@@ -139,6 +170,7 @@ export interface WeatherInfo {
   };
   isGpsAutoDetected?: boolean;
   coordinates?: { lat: number; lon: number };
+  detailedLocation?: DetailedLocation;
 }
 
 export interface AppNotification {
