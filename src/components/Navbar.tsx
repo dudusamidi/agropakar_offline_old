@@ -15,7 +15,8 @@ interface NavbarProps {
   toggleSimulatedOffline: () => void;
   isSimulatedOffline: boolean;
   userRole: UserRole;
-  setUserRole: (role: UserRole) => void;
+  onOpenAdminLogin: () => void;
+  onAdminLogout: () => void;
   notifications: AppNotification[];
   onOpenNotifications: () => void;
   onSyncDatabase: () => void;
@@ -27,7 +28,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   toggleSimulatedOffline,
   isSimulatedOffline,
   userRole,
-  setUserRole,
+  onOpenAdminLogin,
+  onAdminLogout,
   notifications,
   onOpenNotifications,
   onSyncDatabase,
@@ -108,28 +110,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* Role Switcher */}
-          <button
-            onClick={() => setUserRole(userRole === 'petani' ? 'admin' : 'petani')}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-              userRole === 'admin'
-                ? 'bg-amber-400 text-emerald-950 border-amber-300 shadow-sm'
-                : 'bg-emerald-800/90 text-emerald-200 border-emerald-700 hover:bg-emerald-700'
-            }`}
-            title="Ganti Peran Pengguna"
-          >
-            {userRole === 'admin' ? (
-              <>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-950" />
-                <span>Admin</span>
-              </>
-            ) : (
-              <>
-                <User className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Petani</span>
-              </>
-            )}
-          </button>
+          {/* Role Switcher / Admin Login Trigger */}
+          {userRole === 'admin' ? (
+            <button
+              onClick={onAdminLogout}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border bg-amber-400 text-emerald-950 border-amber-300 shadow-sm hover:bg-amber-300"
+              title="Keluar dari sesi Admin"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-950" />
+              <span>Admin (Keluar)</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAdminLogin}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border bg-emerald-800/90 text-emerald-200 border-emerald-700 hover:bg-emerald-700 hover:text-white"
+              title="Masuk sebagai Admin Agronomis (Perlu Password)"
+            >
+              <User className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Masuk Admin</span>
+            </button>
+          )}
         </div>
       </div>
 

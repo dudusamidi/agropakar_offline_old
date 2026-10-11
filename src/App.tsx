@@ -27,6 +27,7 @@ import { ForumSection } from './components/ForumSection';
 import { AdminSection } from './components/AdminSection';
 import { HistorySection } from './components/HistorySection';
 import { NotificationModal } from './components/NotificationModal';
+import { AdminLoginModal } from './components/AdminLoginModal';
 
 export default function App() {
   // --- NETWORK STATE ---
@@ -49,12 +50,21 @@ export default function App() {
 
   // --- MODAL STATES ---
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
   const [selectedDiseaseForModal, setSelectedDiseaseForModal] = useState<Disease | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
 
   // Load initial local data
   useEffect(() => {
-    setUserRole(storage.getUserRole());
+    const savedRole = storage.getUserRole();
+    const isAuth = storage.isAdminAuthenticated();
+    if (savedRole === 'admin' && !isAuth) {
+      setUserRole('petani');
+      storage.setUserRole('petani');
+    } else {
+      setUserRole(savedRole);
+    }
+
     setDbVersion(storage.getDbVersion());
     setDiseases(storage.getDiseases());
     setSymptoms(storage.getSymptoms());
@@ -99,10 +109,27 @@ export default function App() {
     }
   };
 
-  const handleSetUserRole = (role: UserRole) => {
-    setUserRole(role);
-    storage.setUserRole(role);
-    showToast(`Peran dialihkan ke: ${role === 'admin' ? 'Admin Agronomis' : 'Petani Lapangan'}`);
+  const handleOpenAdminLogin = () => {
+    setShowAdminLoginModal(true);
+  };
+
+  const handleAdminLoginSuccess = () => {
+    setUserRole('admin');
+    storage.setUserRole('admin');
+    storage.setAdminAuthenticated(true);
+    setActiveTab('admin');
+    setShowAdminLoginModal(false);
+    showToast('Berhasil masuk sebagai Admin Agronomis!');
+  };
+
+  const handleAdminLogout = () => {
+    setUserRole('petani');
+    storage.setUserRole('petani');
+    storage.setAdminAuthenticated(false);
+    if (activeTab === 'admin') {
+      setActiveTab('diagnose');
+    }
+    showToast('Telah keluar dari mode Admin.');
   };
 
   // --- WEATHER FETCHER ---
@@ -367,7 +394,8 @@ export default function App() {
         toggleSimulatedOffline={toggleSimulatedOffline}
         isSimulatedOffline={isSimulatedOffline}
         userRole={userRole}
-        setUserRole={handleSetUserRole}
+        onOpenAdminLogin={handleOpenAdminLogin}
+        onAdminLogout={handleAdminLogout}
         notifications={notifications}
         onOpenNotifications={() => setShowNotificationModal(true)}
         onSyncDatabase={handleSyncDatabase}
@@ -380,7 +408,13 @@ export default function App() {
         <div className="hidden md:block">
           <TabNavigation
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
+            setActiveTab={(tab) => {
+              if (tab === 'admin' && userRole !== 'admin') {
+                handleOpenAdminLogin();
+                return;
+              }
+              setActiveTab(tab);
+            }}
             userRole={userRole}
             queueCount={offlineQueue.length}
           />
@@ -437,6 +471,7 @@ export default function App() {
             onReleaseDbVersion={handleReleaseDbVersion}
             onBroadcastNotification={handleBroadcastNotification}
             offlineQueueCount={offlineQueue.length}
+            onLogout={handleAdminLogout}
           />
         )}
 
@@ -456,11 +491,24 @@ export default function App() {
       <div className="md:hidden">
         <TabNavigation
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={(tab) => {
+            if (tab === 'admin' && userRole !== 'admin') {
+              handleOpenAdminLogin();
+              return;
+            }
+            setActiveTab(tab);
+          }}
           userRole={userRole}
           queueCount={offlineQueue.length}
         />
       </div>
+
+      {/* Admin Login Modal */}
+      <AdminLoginModal
+        isOpen={showAdminLoginModal}
+        onClose={() => setShowAdminLoginModal(false)}
+        onSuccess={handleAdminLoginSuccess}
+      />
 
       {/* Notification Modal */}
       {showNotificationModal && (

@@ -23,10 +23,37 @@ const STORAGE_KEYS = {
   FORUM: 'agropakar_forum_v1',
   NOTIFICATIONS: 'agropakar_notifications_v1',
   DB_VERSION: 'agropakar_db_version',
-  USER_ROLE: 'agropakar_current_role'
+  USER_ROLE: 'agropakar_current_role',
+  ADMIN_AUTH: 'agropakar_admin_auth_session'
+};
+
+export const DEFAULT_ADMIN_CREDENTIALS = {
+  username: 'admin',
+  password: 'admin'
 };
 
 export const storage = {
+  // --- ADMIN AUTH ---
+  isAdminAuthenticated(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  setAdminAuthenticated(isAuth: boolean): void {
+    try {
+      if (isAuth) {
+        localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
+    }
+  },
+
   // --- DATABASE VERSION ---
   getDbVersion(): number {
     try {

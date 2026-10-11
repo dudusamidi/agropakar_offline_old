@@ -24,6 +24,7 @@ interface AdminSectionProps {
   onReleaseDbVersion: () => void;
   onBroadcastNotification: (notif: AppNotification) => void;
   offlineQueueCount: number;
+  onLogout?: () => void;
 }
 
 export const AdminSection: React.FC<AdminSectionProps> = ({
@@ -34,7 +35,8 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
   dbVersion,
   onReleaseDbVersion,
   onBroadcastNotification,
-  offlineQueueCount
+  offlineQueueCount,
+  onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<'manage_diseases' | 'broadcast' | 'stats'>('manage_diseases');
   const [showDiseaseModal, setShowDiseaseModal] = useState<boolean>(false);
@@ -173,9 +175,20 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
           </div>
         </div>
 
-        <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-950 px-2 py-1 rounded-md shrink-0">
-          Mode Admin Aktif
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-950 px-2 py-1 rounded-md">
+            Mode Admin
+          </span>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="text-xs font-bold bg-white/90 hover:bg-white text-stone-700 px-2.5 py-1 rounded-md border border-amber-300 transition-colors shadow-sm"
+              title="Keluar ke mode Petani"
+            >
+              Keluar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Admin Subtabs */}
